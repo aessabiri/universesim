@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Experience from './components/Experience';
+import { useAudioEngine } from './hooks/useAudioEngine';
 
 const PHASES = {
   BIG_BANG: {
@@ -45,6 +46,14 @@ function App() {
   const [activePhase, setActivePhase] = useState('BIG_BANG');
   const [isTouring, setIsTouring] = useState(false);
   const [flash, setFlash] = useState(false);
+  const [muted, setMuted] = useState(false);
+  
+  const { toggleMute } = useAudioEngine(activePhase, muted);
+
+  const handleMute = () => {
+    setMuted(!muted);
+    toggleMute();
+  };
 
   // Handle Tour Mode
   useEffect(() => {
@@ -106,13 +115,32 @@ function App() {
 
       {/* Tour Status Indicator */}
       {isTouring && (
-          <div className="absolute top-8 right-8 z-10 pointer-events-none">
+          <div className="absolute top-8 right-20 z-10 pointer-events-none">
               <div className="flex items-center gap-2 bg-red-900/50 backdrop-blur border border-red-500/50 px-4 py-2 rounded-full text-red-100 font-mono text-xs animate-pulse">
                   <span className="w-2 h-2 rounded-full bg-red-500"></span>
                   AUTO-PILOT ENGAGED
               </div>
           </div>
       )}
+
+      {/* Audio Control */}
+      <div className="absolute top-8 right-8 z-20">
+        <button 
+          onClick={handleMute}
+          className="bg-white/10 hover:bg-white/20 p-3 rounded-full backdrop-blur-md border border-white/10 transition-all"
+          title={muted ? "Unmute Audio" : "Mute Audio"}
+        >
+          {muted ? (
+             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-white">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6 4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+             </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-white">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+            </svg>
+          )}
+        </button>
+      </div>
 
       {/* Control Bar (Bottom) */}
       <div className="absolute bottom-10 left-0 w-full flex flex-col items-center gap-4 z-20 pointer-events-none">
