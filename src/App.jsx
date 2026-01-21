@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Experience from './components/Experience';
+import TimelineCone from './components/TimelineCone';
 import { useAudioEngine } from './hooks/useAudioEngine';
 
 const PHASES = {
@@ -95,6 +96,13 @@ function App() {
       <div className="absolute inset-0 z-0">
         <Experience phase={activePhase} />
       </div>
+      
+      {/* Timeline Cone (Top) */}
+      <TimelineCone 
+        activePhase={activePhase} 
+        phases={PHASES} 
+        phaseOrder={PHASE_ORDER} 
+      />
 
       {/* Visual Flash Overlay */}
       <div 

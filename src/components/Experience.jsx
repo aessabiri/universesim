@@ -1,46 +1,50 @@
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars, Sparkles } from '@react-three/drei';
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
-import ParticleSystem from './ParticleSystem';
+import { OrbitControls } from '@react-three/drei';
+import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing';
+import CosmicDust from './CosmicDust';
+import StarField from './StarField';
 import CameraController from './CameraController';
 
 const Experience = ({ phase }) => {
   return (
     <Canvas
-      gl={{ antialias: false, alpha: false }}
-      dpr={[1, 2]} // Support high DPI screens
+      gl={{ antialias: false, alpha: false, powerPreference: "high-performance" }}
+      dpr={[1, 2]}
     >
       <color attach="background" args={['#000000']} />
       
-      {/* Cinematic Camera Logic */}
       <CameraController phase={phase} />
 
-      {/* Ambient Environment */}
-      <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-      <Sparkles count={500} scale={50} size={4} speed={0.4} opacity={0.5} />
+      {/* Background Static Stars */}
+      <StarField />
 
+      {/* Main Simulation: Volumetric Dust/Gas */}
       <Suspense fallback={null}>
-        <ParticleSystem phase={phase} />
+        <CosmicDust phase={phase} />
       </Suspense>
 
-      {/* Post Processing for Glow/Cinematic Look */}
+      {/* Cinematic Post Processing */}
       <EffectComposer disableNormalPass>
+        {/* Intense Bloom for the 'Gas Cloud' glow */}
         <Bloom 
-            luminanceThreshold={0.2} 
+            luminanceThreshold={0.15} 
             mipmapBlur 
-            intensity={1.5} 
-            radius={0.6}
+            intensity={1.2} 
+            radius={0.7}
         />
+        {/* Film Grain for realism */}
+        <Noise opacity={0.05} />
+        {/* Darken corners */}
         <Vignette eskil={false} offset={0.1} darkness={1.1} />
       </EffectComposer>
 
       <OrbitControls 
         enablePan={false} 
         autoRotate 
-        autoRotateSpeed={0.5}
-        maxDistance={100}
-        minDistance={10}
+        autoRotateSpeed={0.2}
+        maxDistance={120}
+        minDistance={5}
         enableDamping
       />
     </Canvas>
