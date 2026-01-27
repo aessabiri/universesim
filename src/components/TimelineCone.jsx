@@ -39,31 +39,32 @@ const TimelineCone = ({ activePhase, phaseOrder }) => {
           <defs>
             {/* Master Gradient for Seamless Background */}
             <linearGradient id="grad-master" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#FFFFFF" />        {/* Big Bang */}
-              <stop offset="5%" stopColor="#FFFFFF" />
-              <stop offset="15%" stopColor="#8B0000" />       {/* QGP Start */}
-              <stop offset="25%" stopColor="#4A0404" />       {/* QGP End */}
-              <stop offset="35%" stopColor="#000033" />       {/* Inflation Start */}
-              <stop offset="50%" stopColor="#0F0F3F" />       {/* Inflation End */}
+              <stop offset="0%" stopColor="#000000" />        {/* Previous Universe End */}
+              <stop offset="10%" stopColor="#FFFFFF" />       {/* Singularity / Big Bang */}
+              <stop offset="20%" stopColor="#8B0000" />       {/* QGP */}
+              <stop offset="35%" stopColor="#000033" />       {/* Inflation */}
               <stop offset="60%" stopColor="#2E0854" />       {/* Galaxy Start */}
-              <stop offset="80%" stopColor="#000000" />       {/* Solar System */}
+              <stop offset="85%" stopColor="#000000" />       {/* Solar System */}
             </linearGradient>
 
-            {/* Mask for the Bell Shape (WIDER) */}
+            {/* Mask for the Bow-Tie Shape (}{) */}
             <mask id="coneMask">
               {/* 
-                 New Shape (Wider): 
-                 1. Start at 0,60 (Center)
-                 2. Rapid expansion curve to x=150, y=5 (Top)
-                 3. Horizontal line to end
+                 Shape:
+                 1. Starts wide at x=0 (y=5 to 115)
+                 2. Closes to x=100, y=60
+                 3. Opens to x=250, y=5 to 115
+                 4. Stays parallel to x=1000
               */}
               <path 
-                d="M0,60 
-                   C60,60 100,5 200,5
+                d="M0,5 
+                   C40,5 70,60 100,60
+                   C130,60 160,5 250,5
                    L1000,5
                    L1000,115
-                   L200,115
-                   C100,115 60,60 0,60
+                   L250,115
+                   C160,115 130,60 100,60
+                   C70,60 40,115 0,115
                    Z" 
                 fill="white"
               />
@@ -73,24 +74,18 @@ const TimelineCone = ({ activePhase, phaseOrder }) => {
               <feGaussianBlur stdDeviation="4" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
-
-            {/* Fade Gradients for Details */}
-            <linearGradient id="fade-qgp" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="white" stopOpacity="0" />
-              <stop offset="20%" stopColor="white" stopOpacity="1" />
-              <stop offset="80%" stopColor="white" stopOpacity="1" />
-              <stop offset="100%" stopColor="white" stopOpacity="0" />
-            </linearGradient>
           </defs>
 
           {/* BACKGROUND CONE CONTAINER */}
           <path 
-            d="M0,60 
-               C60,60 100,5 200,5
+            d="M0,5 
+               C40,5 70,60 100,60
+               C130,60 160,5 250,5
                L1000,5
                L1000,115
-               L200,115
-               C100,115 60,60 0,60
+               L250,115
+               C160,115 130,60 100,60
+               C70,60 40,115 0,115
                Z" 
             fill="#050505" 
             stroke="rgba(255,255,255,0.2)" 
@@ -100,34 +95,34 @@ const TimelineCone = ({ activePhase, phaseOrder }) => {
           {/* CONTENT INSIDE MASK */}
           <g mask="url(#coneMask)">
             
-            {/* 1. MASTER BACKGROUND (Seamless) */}
+            {/* 1. MASTER BACKGROUND */}
             <rect x="0" y="0" width="1000" height="120" fill="url(#grad-master)" />
             
-            {/* 2. DETAILS LAYERS (Faded in/out) */}
+            {/* 2. PRE-EXISTENCE GHOSTS (x: 0-100) */}
+            <g opacity="0.3">
+               {Array.from({length: 15}).map((_, i) => (
+                 <circle key={i} cx={Math.random() * 80} cy={20 + Math.random() * 80} r={1} fill="white" />
+               ))}
+            </g>
 
-            {/* QGP Quarks (x: 100-300) */}
+            {/* 3. CURRENT UNIVERSE DETAILS (Shifted x+100) */}
+            
+            {/* QGP Quarks (x: 150-350) */}
             <g opacity="0.8">
               {quarks.map((q, i) => (
-                // Only render if within range to save perf, but conceptually they "fade"
-                // Adding offset to place them in QGP zone
                 <circle 
                   key={i} 
-                  cx={100 + q.cx * 2} 
+                  cx={150 + q.cx * 2} 
                   cy={10 + q.cy} 
                   r={q.r} 
                   fill={q.fill} 
                   opacity={0.6}
                 />
               ))}
-              {/* Soft overlay to blend edges */}
-              <rect x="80" y="0" width="240" height="120" fill="url(#fade-qgp)" style={{ mixBlendMode: 'overlay' }} />
             </g>
 
-            {/* Inflation Fog (x: 300-500) */}
-            <rect x="280" y="0" width="240" height="120" fill="white" fillOpacity="0.03" />
-
-            {/* Galaxies (x: 500-750) */}
-            <g transform="translate(500, 10)">
+            {/* Galaxies (x: 550-800) */}
+            <g transform="translate(550, 10)">
                {galaxies.map((g, i) => (
                  <g key={i} transform={`translate(${g.cx * 2.5}, ${g.cy}) rotate(${g.rot})`} opacity="0.8">
                     <ellipse rx={g.r*2} ry={g.r} fill="rgba(200,200,255,0.3)" />
@@ -136,25 +131,18 @@ const TimelineCone = ({ activePhase, phaseOrder }) => {
                ))}
             </g>
 
-            {/* Solar Systems (x: 750-1000) */}
-            <g transform="translate(750, 0)">
-               {/* A few solar systems */}
-               <circle cx="50" cy="60" r="4" fill="#FDB813" filter="url(#glow-white)" />
-               <ellipse cx="50" cy="60" rx="15" ry="4" fill="none" stroke="white" strokeOpacity="0.3" />
-               
-               <circle cx="150" cy="40" r="3" fill="#FDB813" opacity="0.8" />
-               <ellipse cx="150" cy="40" rx="10" ry="3" fill="none" stroke="white" strokeOpacity="0.2" />
-
-               <circle cx="200" cy="80" r="5" fill="#FDB813" opacity="0.9" />
-               <ellipse cx="200" cy="80" rx="20" ry="6" fill="none" stroke="white" strokeOpacity="0.2" />
+            {/* Solar Systems (x: 800-1000) */}
+            <g transform="translate(800, 0)">
+               <circle cx={50} cy={60} r={4} fill="#FDB813" filter="url(#glow-white)" />
+               <ellipse cx={50} cy={60} rx={15} ry={4} fill="none" stroke="white" strokeOpacity="0.3" />
             </g>
 
-            {/* Active Highlight Overlay */}
+            {/* Active Highlight Overlay (Shifted) */}
             {activeIndex >= 0 && (
               <rect 
-                x={activeIndex * (1000/totalPhases)} 
+                x={100 + activeIndex * (900/totalPhases)} 
                 y="0" 
-                width={1000/totalPhases} 
+                width={900/totalPhases} 
                 height="120" 
                 fill="white" 
                 fillOpacity="0.1" 
@@ -164,13 +152,11 @@ const TimelineCone = ({ activePhase, phaseOrder }) => {
             )}
           </g>
 
-          {/* Phase Labels (Below) */}
+          {/* Phase Labels (Shifted) */}
           {phaseOrder.map((phaseId, index) => {
-            const width = 1000 / totalPhases;
-            const x = index * width + width / 2;
+            const width = 900 / totalPhases;
+            const x = 100 + index * width + width / 2;
             const isActive = index === activeIndex;
-            
-            // Fixed Y position for flat bottom
             const yPos = 110; 
 
             return (
@@ -191,11 +177,11 @@ const TimelineCone = ({ activePhase, phaseOrder }) => {
             );
           })}
 
-          {/* Current Time Indicator Line */}
+          {/* Current Time Indicator Line (Shifted) */}
           <line 
-            x1={activeIndex * (1000/totalPhases) + (1000/totalPhases)/2} 
+            x1={100 + activeIndex * (900/totalPhases) + (900/totalPhases)/2} 
             y1="0" 
-            x2={activeIndex * (1000/totalPhases) + (1000/totalPhases)/2} 
+            x2={100 + activeIndex * (900/totalPhases) + (900/totalPhases)/2} 
             y2="120" 
             stroke="white" 
             strokeWidth="2" 

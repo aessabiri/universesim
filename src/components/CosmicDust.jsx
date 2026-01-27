@@ -2,183 +2,169 @@ import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-// --- CUSTOM SHADERS ---
-
 const vertexShader = `
   attribute float size;
   attribute vec3 color;
-  attribute float angle; // Random rotation for each particle
-  
   varying vec3 vColor;
-  varying float vAngle;
-  
   void main() {
     vColor = color;
-    vAngle = angle;
-    
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    
-    // Size attenuation (particles shrink further away)
     gl_PointSize = size * (300.0 / -mvPosition.z);
-    
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
 
 const fragmentShader = `
   varying vec3 vColor;
-  varying float vAngle;
-  
   void main() {
-    // Rotate UV coordinates based on vAngle
-    float c = cos(vAngle);
-    float s = sin(vAngle);
-    vec2 rotatedUV = vec2(
-      c * (gl_PointCoord.x - 0.5) - s * (gl_PointCoord.y - 0.5) + 0.5,
-      s * (gl_PointCoord.x - 0.5) + c * (gl_PointCoord.y - 0.5) + 0.5
-    );
-
-    // Create a soft, smoky glow
-    // Distance from center of particle (0.5, 0.5)
-    float dist = distance(rotatedUV, vec2(0.5));
-    
-    // Smooth circle edge
+    vec2 uv = gl_PointCoord - 0.5;
+    float dist = length(uv);
     float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
-    
-    // Add some noise/irregularity (simulated by non-linear falloff)
-    alpha = pow(alpha, 1.5); // Soften
-
-    // Discard outer pixels for performance
     if (alpha < 0.01) discard;
-
-    // Output final color
-    gl_FragColor = vec4(vColor, alpha * 0.6); // 0.6 is base opacity
+    gl_FragColor = vec4(vColor, alpha * 0.4); // Reduced alpha for Additive blending
   }
 `;
 
 const CosmicDust = ({ phase }) => {
-  const count = 4000; // Optimized for performance
+  const count = 12000; // Optimized
   const points = useRef();
   
-  // Initialize particles
+  const prevPhase = useRef(phase);
+  const phaseStart = useRef(0);
+
   const particles = useMemo(() => {
     const temp = [];
-    for (let i = 0; i < count; i++) {
-      const t = Math.random() * 100;
-      const factor = 20 + Math.random() * 100;
-      // Pre-calculate random offsets to avoid Math.random in loop
-      const rand1 = Math.random() - 0.5;
-      const rand2 = Math.random() - 0.5;
-      const rand3 = Math.random() - 0.5;
-      
-      const x = (Math.random() - 0.5) * 100;
-      const y = (Math.random() - 0.5) * 100;
-      const z = (Math.random() - 0.5) * 100;
-
-      temp.push({ t, factor, x, y, z, mx: 0, my: 0, mz: 0, rand1, rand2, rand3 });
+    for(let i=0; i<count; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos((Math.random() * 2) - 1);
+        const r = Math.random() * 0.05; 
+        
+        // Randomize speed for "depth" in explosion
+        const speed = 0.5 + Math.random() * 2.5;
+        
+        temp.push({
+            x: r * Math.sin(phi) * Math.cos(theta),
+            y: r * Math.sin(phi) * Math.sin(theta),
+            z: r * Math.cos(phi),
+            vx: Math.sin(phi) * Math.cos(theta) * speed,
+            vy: Math.sin(phi) * Math.sin(theta) * speed,
+            vz: Math.cos(phi) * speed,
+            id: i,
+            age: Math.random()
+        });
     }
     return temp;
-  }, [count]);
+  }, []);
 
   const positions = useMemo(() => new Float32Array(count * 3), [count]);
   const colors = useMemo(() => new Float32Array(count * 3), [count]);
   const sizes = useMemo(() => new Float32Array(count), [count]);
-  const angles = useMemo(() => {
-    const arr = new Float32Array(count);
-    for(let i=0; i<count; i++) arr[i] = Math.random() * Math.PI * 2;
-    return arr;
-  }, [count]);
 
   useFrame((state) => {
     if (!points.current) return;
-    
     const time = state.clock.getElapsedTime();
-    const positionsArray = points.current.geometry.attributes.position.array;
-    const colorsArray = points.current.geometry.attributes.color.array;
-    const sizesArray = points.current.geometry.attributes.size.array;
     
-    // Pre-calculate phase-global values
-    const sinTime20 = Math.sin(time * 20);
-    const time08 = time * 0.8;
-    const sinTime02 = Math.sin(time * 0.2);
-    const spinGalaxy = time * 0.1;
-
-    for (let i = 0; i < count; i++) {
-      const p = particles[i];
-      let targetX = p.x, targetY = p.y, targetZ = p.z;
-      let r = 1, g = 1, b = 1;
-      let size = 1;
-
-      if (phase === 'BIG_BANG') {
-        targetX = p.rand1 * 0.5;
-        targetY = p.rand2 * 0.5;
-        targetZ = p.rand3 * 0.5;
-        size = 15.0 + sinTime20 * 5;
-
-      } else if (phase === 'QGP') {
-        const t = time08;
-        targetX = Math.sin(p.t + t) * 8 + p.rand1;
-        targetY = Math.cos(p.t + t * 0.9) * 8 + p.rand2;
-        targetZ = Math.sin(p.t + t * 0.5) * 8 + p.rand3;
+    if (phase !== prevPhase.current) {
+        phaseStart.current = time;
+        prevPhase.current = phase;
         
-        size = 25.0; // Larger to fill gaps
-        const heat = Math.sin(p.t + time) * 0.5 + 0.5;
-        r = 1.0; g = 0.1 + heat * 0.5; b = 0.05;
-
-      } else if (phase === 'INFLATION') {
-        const radius = 30 + sinTime02 * 2;
-        targetX = radius * Math.sin(p.factor) * Math.cos(p.t);
-        targetY = radius * Math.sin(p.factor) * Math.sin(p.t);
-        targetZ = radius * Math.cos(p.factor);
-        
-        size = 30.0;
-        r = 0.05; g = 0.3; b = 0.8;
-
-      } else if (phase === 'GALAXY') {
-        const arms = 5;
-        const dist = (i / count) * 45;
-        const angle = dist * 0.5 + spinGalaxy + (p.factor % arms) * ((Math.PI * 2) / arms);
-        
-        targetX = Math.cos(angle) * dist;
-        targetY = p.rand1 * (50 / (dist + 1));
-        targetZ = Math.sin(angle) * dist;
-
-        size = 18.0 + (p.factor % 10);
-        
-        if (dist < 5) { r=1; g=0.9; b=0.8; }
-        else if (p.rand2 > 0.2) { r=0.4; g=0.2; b=0.4; }
-        else { r=0.3; g=0.5; b=0.9; }
-
-      } else if (phase === 'SOLAR_SYSTEM') {
-        if (i < count * 0.05) {
-            targetX=0; targetY=0; targetZ=0;
-            size=80; r=1; g=0.6; b=0.1;
-        } else {
-            const angle = p.t + time * (5 / p.factor);
-            const rad = 10 + (p.factor % 30);
-            targetX = Math.cos(angle) * rad;
-            targetY = p.rand1;
-            targetZ = Math.sin(angle) * rad;
-            size = 8.0;
-            r=0.6; g=0.5; b=0.4;
+        if (phase === 'BIG_BANG') {
+             for(let i=0; i<count; i++) {
+                 const p = particles[i];
+                 p.x = (Math.random()-0.5) * 0.1;
+                 p.y = (Math.random()-0.5) * 0.1;
+                 p.z = (Math.random()-0.5) * 0.1;
+             }
         }
-      }
+    }
 
-      // Physics (Inline optimized)
-      p.mx += (targetX - p.x) * 0.02;
-      p.my += (targetY - p.y) * 0.02;
-      p.mz += (targetZ - p.z) * 0.02;
-      p.mx *= 0.9; p.my *= 0.9; p.mz *= 0.9;
-      p.x += p.mx; p.y += p.my; p.z += p.mz;
+    const phaseTime = time - phaseStart.current;
+    const pos = points.current.geometry.attributes.position.array;
+    const col = points.current.geometry.attributes.color.array;
+    const siz = points.current.geometry.attributes.size.array;
 
-      const i3 = i * 3;
-      positionsArray[i3] = p.x;
-      positionsArray[i3+1] = p.y;
-      positionsArray[i3+2] = p.z;
-      colorsArray[i3] = r;
-      colorsArray[i3+1] = g;
-      colorsArray[i3+2] = b;
-      sizesArray[i] = size;
+    for(let i=0; i<count; i++) {
+        const p = particles[i];
+        let r, g, b, s;
+
+        if (phase === 'BIG_BANG') {
+            // SHOCKWAVE PHYSICS
+            const drag = 0.96;
+            const force = 100.0 * Math.exp(-phaseTime * 2.5);
+            
+            p.x += p.vx * force * 0.2;
+            p.y += p.vy * force * 0.2;
+            p.z += p.vz * force * 0.2;
+            
+            p.x += p.vx * 0.1;
+            p.y += p.vy * 0.1;
+            p.z += p.vz * 0.1;
+
+            // Intense color progression
+            if (phaseTime < 0.2) {
+                // Initial flash: White/Yellow
+                r = 1.0; g = 1.0; b = 0.8; 
+                s = 10.0 + Math.random() * 10.0; // Reasonable size
+            } else {
+                // Cool down
+                const t = Math.min(1.0, (phaseTime - 0.2) * 0.5);
+                const colorA = new THREE.Color('#ffaa00'); // Hot Orange
+                const colorB = new THREE.Color('#aa00ff'); // Cosmic Purple
+                const finalColor = colorA.lerp(colorB, t);
+                
+                r = finalColor.r; g = finalColor.g; b = finalColor.b;
+                s = 5.0 * (1.0 - t * 0.5);
+            }
+        }
+        
+        else if (phase === 'INFLATION') {
+            // Space stretches
+            p.x *= 1.05; p.y *= 1.05; p.z *= 1.05;
+            r = 0.2; g = 0.4; b = 1.0; 
+            s = 8.0;
+        }
+        // ... (rest of phases remain logic-consistent)
+        else if (phase === 'QGP') {
+            p.x += (Math.random()-0.5) * 1.5;
+            p.y += (Math.random()-0.5) * 1.5;
+            p.z += (Math.random()-0.5) * 1.5;
+            p.x *= 0.95; p.y *= 0.95; p.z *= 0.95;
+            const type = p.id % 4;
+            if (type === 0) { r=1; g=0.1; b=0.1; }
+            else if (type === 1) { r=0.1; g=1; b=0.1; }
+            else if (type === 2) { r=0.1; g=0.1; b=1; }
+            else { r=1; g=1; b=1; }
+            s = 20.0;
+        }
+        else if (phase === 'GALAXY') {
+            p.y *= 0.98;
+            const radius = 5 + (p.id % 40);
+            const angle = time * 0.2 + radius * 0.05 + (p.id % 3) * 2.1;
+            p.x += (Math.cos(angle) * radius - p.x) * 0.05;
+            p.z += (Math.sin(angle) * radius - p.z) * 0.05;
+            r=0.4; g=0.6; b=1.0; s=5.0;
+        }
+        else if (phase === 'SOLAR_SYSTEM') {
+            if (i < 500) {
+                p.x *= 0.95; p.y *= 0.95; p.z *= 0.95;
+                r=1.0; g=0.9; b=0.5; s=30.0;
+            } else {
+                p.y *= 0.99;
+                const radius = 10 + (p.id % 50);
+                const angle = time * (5.0 / radius) + p.id;
+                p.x = Math.cos(angle) * radius;
+                p.z = Math.sin(angle) * radius;
+                r=0.7; g=0.7; b=0.8; s=2.0;
+            }
+        }
+
+        pos[i*3] = p.x;
+        pos[i*3+1] = p.y;
+        pos[i*3+2] = p.z;
+        col[i*3] = r;
+        col[i*3+1] = g;
+        col[i*3+2] = b;
+        siz[i] = s;
     }
 
     points.current.geometry.attributes.position.needsUpdate = true;
@@ -192,12 +178,11 @@ const CosmicDust = ({ phase }) => {
         <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
         <bufferAttribute attach="attributes-color" count={count} array={colors} itemSize={3} />
         <bufferAttribute attach="attributes-size" count={count} array={sizes} itemSize={1} />
-        <bufferAttribute attach="attributes-angle" count={count} array={angles} itemSize={1} />
       </bufferGeometry>
-      <shaderMaterial
+      <shaderMaterial 
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
-        transparent={true}
+        transparent
         depthWrite={false}
         blending={THREE.AdditiveBlending}
       />
